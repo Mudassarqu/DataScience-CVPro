@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 2 Quiz — Loops & Serial Port</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0b0f1a; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px 40px; }
+  .container { width: 100%; max-width: 680px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .reg-card { background: #1a1a2e; border-radius: 16px; padding: 40px 32px; text-align: center; border: 1px solid #2d2d4e; }
+  .logo { font-size: 34px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .logo span { color: #00E676; }
+  .logo-sub { font-size: 14px; color: #777; margin-bottom: 32px; }
+  .field-label { font-size: 13px; color: #aaa; text-align: left; margin-bottom: 6px; display: block; }
+  .field-input { width: 100%; padding: 14px 16px; border-radius: 10px; border: 2px solid #2d2d4e; background: #0d0d1f; color: #fff; font-size: 16px; font-family: inherit; outline: none; transition: border-color 0.2s; margin-bottom: 14px; }
+  .field-input:focus { border-color: #00E676; }
+  .field-input::placeholder { color: #444; }
+  .start-btn { width: 100%; margin-top: 8px; padding: 16px; background: #00E676; border: none; border-radius: 10px; font-size: 17px; font-weight: 700; color: #0a1f0a; cursor: pointer; transition: background 0.15s; }
+  .start-btn:hover { background: #00c864; }
+  .start-btn:disabled { background: #1a3d1a; color: #555; cursor: not-allowed; }
+  .reg-stats { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .reg-stat { background: #0d0d1f; border-radius: 10px; padding: 12px 8px; font-size: 12px; color: #666; text-align: center; }
+  .reg-stat strong { display: block; font-size: 20px; font-weight: 700; color: #00E676; margin-bottom: 2px; }
+  .quiz-top { background: #1a1a2e; border-radius: 14px; padding: 14px 18px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #2d2d4e; }
+  .player-label { font-size: 11px; color: #00E676; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .player-name { font-size: 16px; color: #fff; font-weight: 600; }
+  .prog-wrap { flex: 1; margin: 0 16px; }
+  .prog-label { font-size: 11px; color: #666; margin-bottom: 4px; text-align: center; }
+  .prog-bar { height: 8px; background: #0d0d1f; border-radius: 4px; overflow: hidden; }
+  .prog-fill { height: 100%; background: #00E676; border-radius: 4px; transition: width 0.4s; }
+  .score-box { text-align: right; }
+  .score-label { font-size: 11px; color: #888; }
+  .score-val { font-size: 22px; font-weight: 700; color: #fff; display: block; }
+  .timer-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .timer-circle { width: 56px; height: 56px; border-radius: 50%; background: #1a1a2e; border: 3px solid #00E676; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: #00E676; transition: border-color 0.3s, color 0.3s; flex-shrink: 0; }
+  .timer-circle.urgent { border-color: #e94560; color: #e94560; }
+  .streak-msg { font-size: 13px; color: #00E676; flex: 1; text-align: center; font-weight: 600; }
+  .q-card { background: #1a1a2e; border-radius: 14px; padding: 22px 24px; margin-bottom: 14px; min-height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #2d2d4e; text-align: center; }
+  .topic-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: #2d2d4e; color: #9b9bbf; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.07em; }
+  .q-num { font-size: 12px; color: #555; margin-bottom: 6px; }
+  .q-text { font-size: 18px; font-weight: 600; color: #fff; line-height: 1.5; }
+  .q-code { font-family: 'Courier New', monospace; font-size: 13px; background: #0a1220; border: 1px solid #2d2d4e; border-radius: 8px; padding: 12px 16px; margin-top: 12px; color: #00E676; text-align: left; width: 100%; white-space: pre; line-height: 1.7; }
+  .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  @media (max-width: 480px) { .answers-grid { grid-template-columns: 1fr; } }
+  .ans-btn { padding: 14px 16px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #fff; text-align: left; display: flex; align-items: center; gap: 10px; transition: transform 0.1s, opacity 0.2s; line-height: 1.4; font-family: inherit; }
+  .ans-btn:hover { transform: scale(1.02); }
+  .ans-btn.a { background: #e21b3c; }
+  .ans-btn.b { background: #1368ce; }
+  .ans-btn.c { background: #d89e00; }
+  .ans-btn.d { background: #26890c; }
+  .ans-btn.correct { outline: 4px solid #fff; opacity: 1 !important; }
+  .ans-btn.wrong { opacity: 0.28; }
+  .ans-btn.locked { cursor: default; pointer-events: none; }
+  .ans-icon { width: 30px; height: 30px; border-radius: 6px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+  .feedback-box { text-align: center; padding: 11px; border-radius: 10px; margin-bottom: 10px; font-size: 14px; font-weight: 600; display: none; }
+  .feedback-box.ok { background: #1a3d1a; color: #00E676; border: 1px solid #00E676; display: block; }
+  .feedback-box.no { background: #3d1a1a; color: #ff6b6b; border: 1px solid #e94560; display: block; }
+  .exp-box { font-size: 13px; color: #777; text-align: center; margin-bottom: 10px; min-height: 18px; line-height: 1.6; }
+  .next-btn { width: 100%; padding: 14px; background: #00E676; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; color: #0a1f0a; cursor: pointer; display: none; font-family: inherit; }
+  .next-btn:hover { background: #00c864; }
+  .sub-wrap { padding: 60px 0; text-align: center; }
+  .spinner { width: 52px; height: 52px; border: 4px solid #2d2d4e; border-top-color: #00E676; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sub-title { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .sub-sub { font-size: 14px; color: #777; }
+  .sub-err { font-size: 13px; color: #e94560; margin-top: 16px; display: none; line-height: 1.6; }
+  .done-card { background: #1a1a2e; border-radius: 16px; padding: 36px 28px; text-align: center; border: 1px solid #2d2d4e; }
+  .done-trophy { font-size: 54px; margin-bottom: 12px; }
+  .done-name { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .done-sent { font-size: 13px; color: #00E676; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .done-score { font-size: 60px; font-weight: 800; color: #00E676; line-height: 1; }
+  .done-pts { font-size: 13px; color: #555; margin-bottom: 6px; }
+  .done-correct { font-size: 16px; color: #ccc; margin-bottom: 24px; }
+  .done-grade { font-size: 15px; font-weight: 600; padding: 10px 22px; border-radius: 10px; display: inline-block; margin-bottom: 24px; }
+  .done-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .done-stat { background: #0d0d1f; border-radius: 10px; padding: 14px 8px; text-align: center; }
+  .done-stat-val { font-size: 22px; font-weight: 700; color: #00E676; display: block; }
+  .done-stat-lbl { font-size: 11px; color: #666; margin-top: 3px; }
+  .done-notice { font-size: 13px; color: #555; padding: 12px; background: #0d0d1f; border-radius: 10px; border: 1px solid #2d2d4e; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div id="regScreen" class="screen active">
+    <div class="reg-card">
+      <div class="logo">Python<span> Quiz</span></div>
+      <div class="logo-sub">Week 2 &mdash; Loops &amp; Serial Port through the PIR Motion Sensor</div>
+      <label class="field-label" for="nameIn">Your full name</label>
+      <input class="field-input" id="nameIn" type="text" placeholder="e.g. Ahmed Al Rashid" maxlength="40" oninput="chk()" onkeydown="if(event.key==='Enter')document.getElementById('classIn').focus()">
+      <label class="field-label" for="classIn">Your class / grade</label>
+      <input class="field-input" id="classIn" type="text" placeholder="e.g. Grade 8A" maxlength="30" oninput="chk()" onkeydown="if(event.key==='Enter')go()">
+      <button class="start-btn" id="startBtn" onclick="go()" disabled>Start Quiz &rarr;</button>
+      <div class="reg-stats">
+        <div class="reg-stat"><strong>10</strong>Questions</div>
+        <div class="reg-stat"><strong>20s</strong>Per question</div>
+        <div class="reg-stat"><strong>1000</strong>Max pts each</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="quizScreen" class="screen">
+    <div class="quiz-top">
+      <div><div class="player-label">Playing as</div><div class="player-name" id="pNameDisplay">—</div></div>
+      <div class="prog-wrap"><div class="prog-label" id="progLabel">1 / 10</div><div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div></div>
+      <div class="score-box"><div class="score-label">Score</div><span class="score-val" id="scoreVal">0</span></div>
+    </div>
+    <div class="timer-row">
+      <div class="timer-circle" id="timerEl">20</div>
+      <div class="streak-msg" id="streakEl"></div>
+      <div style="width:56px"></div>
+    </div>
+    <div class="q-card">
+      <div class="topic-badge" id="badgeEl">Topic</div>
+      <div class="q-num" id="qNumEl">Q1 of 10</div>
+      <div class="q-text" id="qTextEl">Loading...</div>
+      <div class="q-code" id="qCodeEl" style="display:none"></div>
+    </div>
+    <div class="answers-grid" id="ansGrid"></div>
+    <div class="feedback-box" id="fbEl"></div>
+    <div class="exp-box" id="expEl"></div>
+    <button class="next-btn" id="nextBtn" onclick="nextQ()">Next &rarr;</button>
+  </div>
+
+  <div id="subScreen" class="screen">
+    <div class="sub-wrap">
+      <div class="spinner"></div>
+      <div class="sub-title">Submitting your results...</div>
+      <div class="sub-sub">Sending to your teacher — please wait</div>
+      <div class="sub-err" id="subErr"></div>
+    </div>
+  </div>
+
+  <div id="doneScreen" class="screen">
+    <div class="done-card">
+      <div class="done-trophy">🎉</div>
+      <div class="done-name" id="doneName">Well done!</div>
+      <div class="done-sent">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00E676" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Results sent to your teacher
+      </div>
+      <div class="done-score" id="doneScore">0</div>
+      <div class="done-pts">total points</div>
+      <div class="done-correct" id="doneCorrect">0 out of 10 correct</div>
+      <div class="done-grade" id="doneGrade"></div>
+      <div class="done-stats">
+        <div class="done-stat"><span class="done-stat-val" id="dsPct">0%</span><div class="done-stat-lbl">Accuracy</div></div>
+        <div class="done-stat"><span class="done-stat-val" id="dsStreak">0</span><div class="done-stat-lbl">Best streak</div></div>
+        <div class="done-stat"><span class="done-stat-val" id="dsTime">0s</span><div class="done-stat-lbl">Avg time</div></div>
+      </div>
+      <div class="done-notice">Your results have been submitted to your teacher's spreadsheet.<br>There is nothing to download or edit. Well done for completing the quiz!</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// STEP 1 — PASTE YOUR GOOGLE APPS SCRIPT URL HERE
+// ════════════════════════════════════════════════════════════
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzElHsAsVo_XESriB0sUFeKCwkwPHVS9LmqrsxrChvOHKvqe5_QLC8N5Fq2qtL1Aune/exec";
+// ════════════════════════════════════════════════════════════
+
+const ICONS = ['●','■','▲','◆'];
+const COLS  = ['a','b','c','d'];
+
+const ALL_Q = [
+  {tp:'While Loops', tn:'Loop Forever',
+   q:'What does "while True:" do in Python?',
+   code:'while True:\n    line = ser.readline()\n    print(line)',
+   ans:['Runs the code exactly once','Runs the code 10 times','Runs the code forever until stopped','Only runs if True is installed'],
+   c:2, exp:'while True creates an infinite loop — it keeps running forever until you press Ctrl+C to stop it.'},
+
+  {tp:'While Loops', tn:'Indentation',
+   q:'What is wrong with this while loop?',
+   code:'while True:\nprint("reading sensor")',
+   ans:['Nothing is wrong — it is correct','print must be inside the loop with 4 spaces indent','while True needs a condition after it','print is not a valid Python command'],
+   c:1, exp:'All code INSIDE a while loop must be indented 4 spaces. Without indentation Python gives an IndentationError!'},
+
+  {tp:'For Loops', tn:'Finding ESP32',
+   q:'What does this for loop do in our PIR sensor script?',
+   code:'PORT = None\nfor port in list_ports.comports():\n    if "CH340" in port.description:\n        PORT = port.device',
+   ans:['Downloads a list of COM ports from the internet','Scans all connected USB ports and finds the ESP32 by its CH340 chip name','Opens the serial connection to COM5','Reads data from the ESP32'],
+   c:1, exp:'The for loop checks every connected USB port. When it finds one with "CH340" in the description, that is our ESP32 — it saves the port name in PORT.'},
+
+  {tp:'For Loops', tn:'While vs For',
+   q:'Which statement correctly describes the difference between while and for loops?',
+   code:'',
+   ans:['while loops are faster than for loops','for loops run forever, while loops run a fixed number of times','while True runs forever, for loops run a fixed number of times','They are exactly the same — no difference'],
+   c:2, exp:'while True runs FOREVER until you stop it with Ctrl+C. for loops run through a list or a fixed range and then stop automatically.'},
+
+  {tp:'Serial Port', tn:'Baud Rate',
+   q:'Why must Arduino and Python use the SAME baud rate?',
+   code:'# Arduino code:  Serial.begin(9600)\n# Python code:    serial.Serial(PORT, 9600)',
+   ans:['It is just a style convention — does not matter','They communicate over USB at the same speed — if speeds differ, no data comes through','9600 is the fastest possible speed','The baud rate controls the graph update speed'],
+   c:1, exp:'Baud rate is the speed of communication. Both sides must agree on the speed or the data becomes garbled or nothing is received at all.'},
+
+  {tp:'String Methods', tn:'decode and strip',
+   q:'Why do we need .decode("utf-8", errors="ignore") after readline()?',
+   code:'line = ser.readline().decode("utf-8", errors="ignore").strip()',
+   ans:['To make the text uppercase','readline() returns raw bytes not text — decode converts bytes to readable Python string','To remove duplicate sensor readings','To convert the text to a number'],
+   c:1, exp:'readline() returns bytes (raw binary data). .decode("utf-8") converts bytes to a Python string we can work with. errors="ignore" skips any unreadable bytes.'},
+
+  {tp:'String Methods', tn:'split and extract',
+   q:'What does line.split(":")[1] return from this sensor line?',
+   code:'line = "Motion: 45"\nvalue = line.split(":")[1]',
+   ans:['"Motion"','" 45" (the text after the colon)','["Motion", " 45"]','45 as a number'],
+   c:1, exp:'split(":") cuts the string at ":" giving ["Motion", " 45"]. Index [1] takes the second part. It is still text — use int() or float() to convert to a number.'},
+
+  {tp:'Try / Except', tn:'Error Handling',
+   q:'What happens when the except block runs with "pass"?',
+   code:'try:\n    score = int(line)\nexcept:\n    pass',
+   ans:['Python prints an error message and stops','Python skips the bad line and continues with the next reading','Python restarts from the beginning','Python waits 5 seconds then tries again'],
+   c:1, exp:'pass means "do nothing and move on". When a bad line arrives, except catches the error and pass skips it silently. The loop continues with the next reading.'},
+
+  {tp:'Serial Port', tn:'COM Port Rules',
+   q:'You run your Python PIR script and get: "SerialException: Access is denied". What is the fix?',
+   code:'SerialException: could not open port COM5\nPermissionError(13, Access is denied)',
+   ans:['Reinstall Python','Restart your computer','Close Arduino IDE Serial Monitor — only one program can use COM5 at a time','Change the baud rate to 115200'],
+   c:2, exp:'Only ONE program can use COM5 at a time. If Arduino IDE Serial Monitor is open it holds COM5 and Python cannot connect. Always close Arduino IDE first!'},
+
+  {tp:'Full Code', tn:'PIR Script',
+   q:'In the PIR script, why do we check "if line:" before trying to convert it?',
+   code:'while True:\n    line = ser.readline().decode("utf-8", errors="ignore").strip()\n    if line:\n        try:\n            score = int(line)',
+   ans:['To check if the ESP32 is connected','readline() sometimes returns an empty string on timeout — converting empty string to int() would crash','To skip lines containing the word Motion','To limit the script to 100 readings'],
+   c:1, exp:'readline() with timeout=1 can return an empty string if no data arrives in 1 second. Trying int("") would raise a ValueError. Checking "if line:" filters out empty lines before we process them.'},
+];
+
+let pName='', pClass='', questions=[], cur=0, score=0;
+let streak=0, bestStreak=0, answered=false;
+let timer=20, timerInt=null;
+let topicScores={}, results=[], timeTaken=[], qStart=0;
+
+function $(id){ return document.getElementById(id); }
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function shuffle(a){ return [...a].sort(()=>Math.random()-0.5); }
+
+function chk(){ $('startBtn').disabled = $('nameIn').value.trim().length<2 || $('classIn').value.trim().length<1; }
+
+function go(){
+  pName=$('nameIn').value.trim(); pClass=$('classIn').value.trim();
+  if(pName.length<2||pClass.length<1) return;
+  $('pNameDisplay').textContent=pName;
+  questions=shuffle(ALL_Q); cur=0; score=0; streak=0; bestStreak=0;
+  topicScores={}; results=[]; timeTaken=[];
+  show('quizScreen'); renderQ();
+}
+
+function renderQ(){
+  answered=false;
+  const q=questions[cur];
+  $('progFill').style.width=Math.round(cur/questions.length*100)+'%';
+  $('progLabel').textContent=(cur+1)+' / '+questions.length;
+  $('badgeEl').textContent=q.tp+' — '+q.tn;
+  $('qNumEl').textContent='Q'+(cur+1)+' of '+questions.length;
+  $('qTextEl').textContent=q.q;
+  $('fbEl').className='feedback-box'; $('expEl').textContent=''; $('nextBtn').style.display='none';
+  $('streakEl').textContent=streak>=2?streak+' in a row! 🔥':'';
+  const ce=$('qCodeEl');
+  if(q.code&&q.code.trim()){ ce.style.display='block'; ce.textContent=q.code; } else { ce.style.display='none'; }
+  const grid=$('ansGrid'); grid.innerHTML='';
+  shuffle([0,1,2,3]).forEach((orig,pos)=>{
+    const btn=document.createElement('button');
+    btn.className='ans-btn '+COLS[pos];
+    btn.innerHTML='<span class="ans-icon">'+ICONS[pos]+'</span>'+q.ans[orig];
+    btn.dataset.orig=orig; btn.onclick=()=>pick(btn,orig===q.c,q);
+    grid.appendChild(btn);
+  });
+  qStart=Date.now(); startTimer();
+}
+
+function startTimer(){ clearInterval(timerInt); timer=20; updTimer(); timerInt=setInterval(()=>{ timer--; updTimer(); if(timer<=0){ clearInterval(timerInt); timeUp(); }},1000); }
+function updTimer(){ $('timerEl').textContent=timer; $('timerEl').className='timer-circle'+(timer<=5?' urgent':''); }
+function timeUp(){
+  if(answered) return; answered=true; streak=0;
+  revealAll(); $('fbEl').textContent="Time's up!"; $('fbEl').className='feedback-box no';
+  $('expEl').textContent=questions[cur].exp; $('nextBtn').style.display='block';
+  results.push({topic:questions[cur].tp+' — '+questions[cur].tn,question:questions[cur].q,correct:'No',points:0,timeSec:20});
+}
+function pick(btn,isOk,q){
+  if(answered) return; answered=true; clearInterval(timerInt);
+  const elapsed=Math.round((Date.now()-qStart)/1000); timeTaken.push(elapsed);
+  const pts=isOk?Math.max(500,timer*50):0;
+  if(isOk){ score+=pts; streak++; bestStreak=Math.max(bestStreak,streak); } else streak=0;
+  $('scoreVal').textContent=score.toLocaleString();
+  if(!topicScores[q.tp]) topicScores[q.tp]={name:q.tn,c:0,t:0};
+  topicScores[q.tp].t++; if(isOk) topicScores[q.tp].c++;
+  revealAll();
+  $('fbEl').textContent=isOk?(streak>=3?'Correct! +'+pts.toLocaleString()+' pts — '+streak+' streak! 🔥':'Correct! +'+pts.toLocaleString()+' pts'):'Not quite — see the explanation below';
+  $('fbEl').className='feedback-box '+(isOk?'ok':'no');
+  $('expEl').textContent=q.exp; $('streakEl').textContent=streak>=2?streak+' in a row! 🔥':'';
+  $('nextBtn').style.display='block';
+  results.push({topic:q.tp+' — '+q.tn,question:q.q,correct:isOk?'Yes':'No',points:pts,timeSec:elapsed});
+}
+function revealAll(){
+  const q=questions[cur];
+  document.querySelectorAll('.ans-btn').forEach(b=>{ b.classList.add('locked'); b.classList.add(parseInt(b.dataset.orig)===q.c?'correct':'wrong'); });
+}
+function nextQ(){ cur++; if(cur>=questions.length) submitResults(); else renderQ(); }
+
+async function submitResults(){
+  show('subScreen');
+  const correct=results.filter(r=>r.correct==='Yes').length;
+  const pct=Math.round(correct/questions.length*100);
+  const avgTime=timeTaken.length?Math.round(timeTaken.reduce((a,b)=>a+b,0)/timeTaken.length):0;
+  const grade=pct>=90?'Excellent':pct>=70?'Great':pct>=50?'Good':'Needs Practice';
+  const now=new Date();
+  const topicBreakdown=Object.entries(topicScores).map(([t,v])=>t+' ('+v.name+'): '+v.c+'/'+v.t+' — '+Math.round(v.c/v.t*100)+'%').join(' | ');
+  const questionLog=results.map((r,i)=>'Q'+(i+1)+': ['+r.correct+'] '+r.topic+' | '+r.points+' pts | '+r.timeSec+'s').join(' || ');
+  const payload={studentName:pName,className:pClass,date:now.toLocaleDateString('en-GB'),time:now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),totalScore:score,correct,totalQuestions:questions.length,accuracy:pct,grade,bestStreak,avgTimeSec:avgTime,topicBreakdown,questionLog};
+  try {
+    await fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    showDone(correct,pct,avgTime,grade);
+  } catch(err){
+    $('subErr').innerHTML='Could not reach the results server.<br>Please ask your teacher for help.<br><small style="color:#555">'+err.message+'</small>';
+    $('subErr').style.display='block';
+  }
+}
+
+function showDone(correct,pct,avgTime,grade){
+  show('doneScreen');
+  $('doneName').textContent='Well done, '+pName+'!';
+  $('doneScore').textContent=score.toLocaleString();
+  $('doneCorrect').textContent=correct+' out of '+questions.length+' correct';
+  $('dsPct').textContent=pct+'%'; $('dsStreak').textContent=bestStreak; $('dsTime').textContent=avgTime+'s';
+  const grades={'Excellent':['#1a3d1a','#00E676','Excellent — Loop Master! 🏆'],'Great':['#1a2e3d','#00C2FF','Great work — Keep it up! 👏'],'Good':['#3d3d1a','#FFD700','Good effort — Review and retry! 📚'],'Needs Practice':['#3d1a1a','#ff6b6b','Keep practising — you\'ve got this! 💪']};
+  const [bg,col,lbl]=grades[grade]||grades['Needs Practice'];
+  $('doneGrade').style.cssText='background:'+bg+';color:'+col+';padding:10px 22px;border-radius:10px';
+  $('doneGrade').textContent=lbl;
+}
+</script>
+</body>
+</html>
